@@ -1,0 +1,45 @@
+@rendermode InteractiveWebAssembly
+
+<label for="deporte">Deporte</label>
+<InputSelect id="deporte" class="form-control" TValue="int" @bind-Value="deporteSel" @onchange="OnDeporteChanged">
+    <option value="0">Seleccione un deporte</option>
+    @foreach (var dep in deportes)
+    {
+        <option value="@dep.Key">@dep.Value</option>
+    }
+</InputSelect>
+@* <p>@deporteSel</p> *@
+
+@code {
+    Dictionary<int, string> deportes = new Dictionary<int, string>();
+
+    private int deporteSel = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(500);
+
+        deportes = new Dictionary<int, string>
+        {
+            { 1, "Fútbol" },
+            { 2, "Baloncesto" },
+            { 3, "Tenis" },
+            { 4, "Voleibol" },
+            { 5, "Béisbol" },
+            { 6, "Hockey" },
+            { 7, "Rugby" },
+            { 8, "Golf" },
+            { 9, "Natación" },
+            { 10, "Ciclismo" }
+        };
+
+    }
+    // Aquí puedes agregar lógica adicional si es necesario
+    // Por ejemplo, manejar el evento de cambio de selección
+    private void OnDeporteChanged(ChangeEventArgs e)
+    {
+        // Lógica para manejar el cambio de selección
+        var selectedValue = e.Value;
+        Console.WriteLine($"Deporte seleccionado: {selectedValue}");
+    }
+}

@@ -1,0 +1,315 @@
+@rendermode InteractiveWebAssembly
+
+<EditForm Model="@searchModel" OnValidSubmit="@HandleSearch" class="search-form">
+    <DataAnnotationsValidator />
+
+    <!-- Lugar -->
+    <div class="form-group">
+        <label class="form-label" for="lugar">Lugar</label>
+        <div class="autocomplete-container">
+            <InputText @bind-Value="searchModel.Lugar"
+                       class="form-input"
+                       placeholder="Ej: Buenos Aires, CABA..."
+                       @oninput="@((e) => OnLugarInput(e.Value?.ToString()))"
+                       @onfocus="@((e) => ShowLugarSuggestions())"
+                       @onblur="@((e) => HideSuggestions("lugar"))" />
+
+            @if (showLugarSuggestions && filteredLugares.Any())
+            {
+                <div class="autocomplete-suggestions">
+                    @foreach (var lugar in filteredLugares)
+                    {
+                        <div class="autocomplete-suggestion"
+                             @onmousedown="@(() => SelectLugar(lugar))">
+                            @lugar
+                        </div>
+                    }
+                </div>
+            }
+            @* 
+            @if (showLugarSuggestions && filteredLugares.Any())
+            {
+                <div class="autocomplete-suggestions">
+                    @foreach (var lugar in filteredLugares)
+                    {
+                        <div class="autocomplete-suggestion"
+                             @onmousedown="@(() => SelectLugar(lugar))">
+                            @lugar
+                        </div>
+                    }
+                </div>
+            } *@
+        </div>
+        <ValidationMessage For="@(() => searchModel.Lugar)" />
+    </div>
+
+    <!-- Deporte -->
+    <div class="form-group">
+        <label class="form-label" for="deporte">Deporte</label>
+        <div class="autocomplete-container">
+            <InputText @bind-Value="searchModel.Deporte"
+                       class="form-input"
+                       placeholder="Ej: Fútbol, Básquet, Tenis..."
+                       @oninput="@((e) => OnDeporteInput(e.Value?.ToString()))"
+                       @onfocus="@(() => ShowDeporteSuggestions())"
+                       @onblur="@(() => HideSuggestions("deporte"))" />
+
+            @if (showDeporteSuggestions && filteredDeportes.Any())
+            {
+                <div class="autocomplete-suggestions">
+                    @foreach (var deporte in filteredDeportes)
+                    {
+                        <div class="autocomplete-suggestion"
+                             @onmousedown="@(() => SelectDeporte(deporte))">
+                            @deporte
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        <ValidationMessage For="@(() => searchModel.Deporte)" />
+    </div>
+
+    <!-- Fecha -->
+    <div class="form-group">
+        <label class="form-label" for="fecha">Fecha</label>
+        <InputDate @bind-Value="searchModel.Fecha"
+                   class="form-input"
+                   min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                   max="@DateTime.Today.AddMonths(1).ToString("yyyy-MM-dd")"
+                   onchange="@RecargarHorario()" />
+        <ValidationMessage For="@(() => searchModel.Fecha)" />
+    </div>
+
+    <!-- Horario -->
+    <div class="form-group">
+        <label class="form-label" for="horario">Horario</label>
+        <div class="custom-select">
+            <InputSelect @bind-Value="searchModel.Horario" class="form-input">
+                <option value="">Seleccionar horario</option>
+                @foreach (var horario in horarios)
+                {
+                    <option value="@horario.Value">@horario.Text</option>
+                }
+            </InputSelect>
+        </div>
+        <ValidationMessage For="@(() => searchModel.Horario)" />
+    </div>
+</EditForm>
+
+<div class="search-button-container">
+    <button type="button" class="search-button" @onclick="HandleSearch" disabled="@isSearching">
+        @if (isSearching)
+        {
+            <span class="loading"></span>
+            <span>Buscando...</span>
+        }
+        else
+        {
+            <span>Buscar Canchas</span>
+        }
+    </button>
+</div>
+
+@code {
+    // Modelo para el formulario de búsqueda
+    private SearchModel searchModel = new();
+    private bool isSearching = false;
+
+    // Listas para autocompletado
+    private List<string> lugares = new()
+    {
+        "Buenos Aires - CABA",
+        "Buenos Aires - Zona Norte",
+        "Buenos Aires - Zona Oeste",
+        "Buenos Aires - Zona Sur",
+        "La Plata",
+        "Mar del Plata",
+        "Córdoba Capital",
+        "Rosario",
+        "Mendoza",
+        "Tucumán"
+    };
+
+    private List<string> deportes = new()
+    {
+        "Fútbol 11",
+        "Fútbol 5",
+        "Básquet",
+        "Tenis",
+        "Paddle",
+        "Vóley",
+        "Handball",
+        "Hockey",
+        "Natación",
+        "Squash"
+    };
+
+    private List<HorarioOption> horarios = new();
+    // {
+    //     new("08:00", "08:00 - 09:00"),
+    //     new("09:00", "09:00 - 10:00"),
+    //     new("10:00", "10:00 - 11:00"),
+    //     new("11:00", "11:00 - 12:00"),
+    //     new("12:00", "12:00 - 13:00"),
+    //     new("13:00", "13:00 - 14:00"),
+    //     new("14:00", "14:00 - 15:00"),
+    //     new("15:00", "15:00 - 16:00"),
+    //     new("16:00", "16:00 - 17:00"),
+    //     new("17:00", "17:00 - 18:00"),
+    //     new("18:00", "18:00 - 19:00"),
+    //     new("19:00", "19:00 - 20:00"),
+    //     new("20:00", "20:00 - 21:00"),
+    //     new("21:00", "21:00 - 22:00"),
+    //     new("22:00", "22:00 - 23:00")
+    // };
+
+    // Variables para autocompletado
+    private List<string> filteredLugares = new();
+    private List<string> filteredDeportes = new();
+    private bool showLugarSuggestions = false;
+    private bool showDeporteSuggestions = false;
+
+    protected override void OnInitialized()
+    {
+        // Establecer fecha por defecto
+        searchModel.Fecha = DateTime.Today;
+    }
+
+    private async Task RecargarHorario()
+    {
+        DateTime inicio = searchModel.Fecha;  // Desde las 08:00
+        DateTime fin = inicio.AddDays(1).AddHours(2);    // Hasta las 20:00
+
+        if (inicio.Hour < 7) inicio = new DateTime(inicio.Year, inicio.Month, inicio.Day, 8, 0, 0);
+
+        horarios.Clear();
+
+        while (inicio <= fin)
+        {
+            // horarios.Add(inicio.ToString("HH:mm"));
+            horarios.Add(new HorarioOption(inicio.ToString("HH:mm"), $"{inicio:HH:mm}"));
+            inicio = inicio.AddMinutes(30);
+        }
+    }
+
+    // Métodos para autocompletado de Lugar
+    private async Task OnLugarInput(string value)
+    {
+
+        if (string.IsNullOrEmpty(value) || value.Length < 2)
+        {
+            showLugarSuggestions = false;
+            return;
+        }
+
+        filteredLugares = lugares
+            .Where(l => l.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .Take(5)
+            .ToList();
+
+        showLugarSuggestions = filteredLugares.Any();
+        StateHasChanged();
+    }
+
+    private async Task ShowLugarSuggestions()
+    {
+        if (!string.IsNullOrEmpty(searchModel.Lugar))
+        {
+            await OnLugarInput(searchModel.Lugar);
+        }
+    }
+
+    private async Task SelectLugar(string lugar)
+    {
+        searchModel.Lugar = lugar;
+        showLugarSuggestions = false;
+        StateHasChanged();
+    }
+
+    // Métodos para autocompletado de Deporte
+    private void OnDeporteInput(string? value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length < 2)
+        {
+            showDeporteSuggestions = false;
+            return;
+        }
+
+        filteredDeportes = deportes
+            .Where(d => d.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .Take(5)
+            .ToList();
+
+        showDeporteSuggestions = filteredDeportes.Any();
+        StateHasChanged();
+    }
+
+    private void ShowDeporteSuggestions()
+    {
+        if (!string.IsNullOrEmpty(searchModel.Deporte))
+        {
+            OnDeporteInput(searchModel.Deporte);
+        }
+    }
+
+    private void SelectDeporte(string deporte)
+    {
+        searchModel.Deporte = deporte;
+        showDeporteSuggestions = false;
+        StateHasChanged();
+    }
+
+    // Ocultar sugerencias
+    private async Task HideSuggestions(string type)
+    {
+        // Delay para permitir que se ejecute el click en la sugerencia
+        await Task.Delay(200);
+
+        if (type == "lugar")
+            showLugarSuggestions = false;
+        else if (type == "deporte")
+            showDeporteSuggestions = false;
+
+        StateHasChanged();
+    }
+
+    // Manejar búsqueda
+    private async Task HandleSearch()
+    {
+        isSearching = true;
+        StateHasChanged();
+
+        try
+        {
+            // Aquí realizarías la llamada a tu API
+            await Task.Delay(1000); // Simular llamada a API
+
+            // Redirigir a página de resultados o mostrar resultados
+            Console.WriteLine($"Buscando canchas en {searchModel.Lugar}, deporte: {searchModel.Deporte}, fecha: {searchModel.Fecha:yyyy-MM-dd}, horario: {searchModel.Horario}");
+
+            // Ejemplo de redirección:
+            // NavigationManager.NavigateTo($"/resultados?lugar={searchModel.Lugar}&deporte={searchModel.Deporte}&fecha={searchModel.Fecha:yyyy-MM-dd}&horario={searchModel.Horario}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en búsqueda: {ex.Message}");
+        }
+        finally
+        {
+            isSearching = false;
+            StateHasChanged();
+        }
+    }
+
+    // Clases auxiliares
+    public class SearchModel
+    {
+        public string Lugar { get; set; } = string.Empty;
+        public string Deporte { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string Horario { get; set; } = string.Empty;
+    }
+
+    public record HorarioOption(string Value, string Text);
+}

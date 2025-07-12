@@ -1,0 +1,60 @@
+﻿@rendermode InteractiveWebAssembly
+
+
+<div class="form-inline" role="form">
+    <div class="form-group">
+
+        <div class="col-sm-3">
+            <ComboDeportes />
+        </div>
+        <div class="col-sm-3">
+            <label for="fecha">Fecha</label>
+            <InputDate id="fecha" class="form-control" @bind-Value="fecha" onchange="@RecargarHorario(fecha)" />
+        </div>
+        <div class="col-sm-2">
+            <label>Hora</label>
+            <InputSelect id="tiempo" @bind-Value="horarioSeleccionado" TValue="String" class="form-control">
+                <option value="">Todos los disponibles</option>
+                @foreach (var horario in horarios)
+                {
+                    <option value="@horario">@horario</option>
+                }
+            </InputSelect>
+        </div>
+
+    </div>
+    <button class="btn btn-primary">Submit</button>
+    <p>Fecha seleccionada: @fecha.ToShortDateString()</p>
+</div>
+
+@code {
+
+    DateTime fecha = DateTime.Now;
+
+    private List<string> horarios = new();
+    private string horarioSeleccionado;
+
+    protected override void OnInitialized()
+    {
+
+    }
+
+    private async Task RecargarHorario(DateTime nuevaFecha)
+    {
+        DateTime inicio = fecha;  // Desde las 08:00
+        DateTime fin = DateTime.Today.AddDays(1).AddHours(2);    // Hasta las 20:00
+
+        while (inicio <= fin)
+        {
+            horarios.Add(inicio.ToString("HH:mm"));
+            inicio = inicio.AddMinutes(30);
+        }
+    }
+
+    private async Task OnSubmit()
+    {
+
+        // Logic for handling the form submission can be added here
+    }
+
+}
